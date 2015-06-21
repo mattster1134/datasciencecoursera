@@ -1,0 +1,56 @@
+---
+title: "Practical Machine Learning Write Up"
+output: html_document
+---
+
+This report is using Human Activity Recognition (HAR) data. The report attempts to predict the Classe variable, which is how the those involved in collecting the HAR data exercised.
+
+First step is to pre process data by creating traning and test sets and removing columns with NA values.
+
+```{r}
+setwd("~/Data Science/Practical Machine Learning")
+library(caret)
+library(e1071)
+
+Train<-read.csv("pml-training.csv", header=T, na.strings=c("NA", "#DIV/0!"))
+Test<-read.csv("pml-testing.csv", header=T, na.string=c("NA", "#DIV/0!"))
+
+processedTrain<-Train[, apply(Train, 2, function(x) !any(is.na(x)))] 
+cleanTrain<-processedTrain[,-c(1:8)]
+cleanTest<-Test[,names(cleanTrain[,-52])]
+
+```
+
+The data was broken up into two chunks: 75% went into a traning set and the rest of the 25% went into the test set.
+
+```{r}
+inTrain<-createDataPartition(y=cleanTrain$classe, p=0.75,list=F)
+training<-cleanTrain[inTrain,] 
+test<-cleanTrain[-inTrain,] 
+```
+
+
+Using the Random Forest Trees algorithm on the training set, the estimated error of prediction and accuracy of the data was predicted using 51 predictors.  Accuracy was predicted at 99.2% with a 95% confidence interval (0.989-0.994) with a 0.99 Kappa value.
+
+```{r}
+fit<-trainControl(method="cv", number=5, allowParallel=T, verbose=T)
+fit2<-train(classe~.,data=training, method="rf", trControl=fit, verbose=F)
+
+predicttest<-predict(fit2, newdata=test)
+confusionMatrix(predicttest, test$classe)
+
+testCases<-predict(fit2, newdata=cleanTest)
+testCases
+```
+
+Upon completion of prediction algorithm for 20 test cases, the function below creates single text files to upload to coursera.
+
+```{r}
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+pml_write_files(testCases)
